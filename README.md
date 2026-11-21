@@ -82,4 +82,4 @@ Confirmed for real, not just by reading the rewrite config: signed up through `/
 
 Dark by design, 
 
-/* … truncated 2193 chars — edit only what you need near the top … */
+/* … truncated 72 chars — edit only what you need near the top … */
