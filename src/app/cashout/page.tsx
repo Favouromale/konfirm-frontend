@@ -201,124 +201,93 @@ export default function CashoutPage() {
       if (!challengeRes.ok) throw new Error(challenge.message || "could not reach the cash-out partner");
 
       if (!merchantAddress.current) throw new Error("no Stellar address on file");
-      showProgress("Approve the sign-in in your wallet…");
-      const signedChallenge = await freighterApi.signTransaction(challenge.transaction, {
+      signingInFlight.current = true;
+      const signed = await freighterApi.signTransaction(challenge.xdr, {
         networkPassphrase: challenge.network_passphrase,
         address: merchantAddress.current,
       });
+      signingInFlight.current = false;
       if (cancelled.current) return;
-      if (signedChallenge.error) throw new Error(signedChallenge.error);
+      if (signed.error) throw new Error(signed.error);
 
-      const tokenRes = await fetch(`${API_BASE}/withdrawals/token`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transaction: signedChallenge.signedTxXdr }),
-      });
-      if (cancelled.current) return;
-      const tokenBody = await tokenRes.json();
-      if (cancelled.current) return;
-      if (!tokenRes.ok) throw new Error(tokenBody.message || "the cash-out partner rejected that signature");
-
-      showProgress("Opening the cash-out form…");
+      showProgress("Starting your cash-out…");
       const startRes = await fetch(`${API_BASE}/withdrawals/start`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currency, token: tokenBody.token }),
+        body: JSON.stringify({ currency, signed_challenge: signed.signedTxXdr }),
       });
       if (cancelled.current) return;
-      const startBody = await startRes.json();
+      const start = await startRes.json();
       if (cancelled.current) return;
-      if (!startRes.ok) throw new Error(startBody.message || "could not start a cash-out");
+      if (!startRes.ok) throw new Error(start.message || "could not start the cash-out");
 
-      signingInFlight.current = false;
-      inFlight.current = false;
-      window.open(startBody.url, "konfirm-cashout", "width=460,height=700");
-      pollStatus(tokenBody.token, startBody.id);
+      await pollStatus(start.token, start.id);
     } catch (err) {
       if (cancelled.current) return;
       reportError(err, { tags: { flow: "cashout", stage: "start" } });
       showFormError(friendlyMessage(err));
+    } finally {
+      signingInFlight.current = false;
+      if (!cancelled.current) setStarting(false);
     }
-  }
-
-  function handleAnother() {
-    inFlight.current = false;
-    setView("form");
-    setStarting(false);
-    setStatus("");
   }
 
   if (!resolved) return null;
 
   return (
-    <div className="page-center">
+    <main className="page">
       <div className="card">
-        <div className="top">
-          <div className="brand">
-            <span className="mark">✓</span> Konfirm
-          </div>
-          <Link className="back" href="/activity">
-            ← Activity
-          </Link>
-        </div>
+        <h1>Cash out</h1>
+        <p className="subtitle">
+          Convert your balance to {currency} and send it to your Stellar wallet. This test partner accepts between 1–10
+          units per cash-out, so a balance above 10 units needs multiple cash-outs.
+        </p>
 
         {view === "form" && (
-          <div>
-            <h1>Cash out</h1>
-            <p className="sub">Move funds from your Stellar wallet to a bank account through a Stellar anchor partner.</p>
+          <>
+            <label className="field">
+              <span>Currency</span>
+              <select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}>
+                <option value="XLM">XLM</option>
+                <option value="USDC">USDC</option>
+              </select>
+            </label>
 
-            <div className="currency-toggle">
-              {(["XLM", "USDC"] as Currency[]).map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`ctoggle${currency === c ? " active" : ""}`}
-                  aria-pressed={currency === c}
-                  onClick={() => setCurrency(c)}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-            <div className="limit-note">This test partner accepts between 1–10 units per cash-out.</div>
-
-            {freighterAvailable === false ? (
-              <div className="status error">
-                Cash-out requires the Freighter browser extension. Open this page in Chrome or Firefox on desktop with{" "}
-                <a href="https://freighter.app" target="_blank" rel="noopener noreferrer">Freighter installed</a>.
-              </div>
-            ) : (
-              <>
-                <button type="button" className="primary" disabled={starting} onClick={handleStart}>
-                  {starting ? "Starting…" : "Connect wallet & start cash-out"}
-                </button>
-                <div className={`status${status || missingAddressStatus ? " error" : ""}`}>{status || missingAddressStatus}</div>
-              </>
+            {freighterAvailable === false && (
+              <p className="status error">
+                Freighter wallet not detected. Install the Freighter extension to cash out.
+              </p>
             )}
-          </div>
+
+            {(status || missingAddressStatus) && (
+              <p className="status error">{status || missingAddressStatus}</p>
+            )}
+
+            <button className="btn" onClick={handleStart} disabled={starting || freighterAvailable === false}>
+              {starting ? "Starting…" : "Start cash-out"}
+            </button>
+
+            <div className="limit-note">This test partner accepts between 1–10 units per cash-out.</div>
+          </>
         )}
 
         {view === "progress" && (
           <div className="progress">
-            <div className="spin" />
-            <div className="stage">{stage}</div>
-            <div className="hint">{hint}</div>
+            <p className="stage">{stage}</p>
+            {hint && <p className="hint">{hint}</p>}
           </div>
         )}
 
         {view === "success" && (
-          <div className="success-box">
-            <div className="tick">✓</div>
-            <h1 className="success-title">Cash-out complete</h1>
-            <div className="success-detail">Your funds are on their way to your bank.</div>
-            <button type="button" className="secondary" onClick={handleAnother}>
-              Start another cash-out
-            </button>
+          <div className="success">
+            <p>Your cash-out is complete.</p>
+            <Link href="/dashboard" className="btn">
+              Back to dashboard
+            </Link>
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }
