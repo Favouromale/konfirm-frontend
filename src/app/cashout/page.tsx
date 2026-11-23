@@ -24,13 +24,30 @@ const STATUS_COPY: Record<string, [string, string]> = {
   on_hold: ["Your cash-out is on hold…", "The partner may need more information."],
 };
 
+// Curated, user-actionable validation codes whose backend `message` is safe
+// to surface verbatim. Anything else falls back to a generic message so we
+// never leak raw backend text (see #41) while still showing specific,
+// self-correctable errors like amount-out-of-range (see #95).
+const SAFE_ERROR_CODES = new Set([
+  "amount_below_minimum",
+  "amount_above_maximum",
+  "amount_out_of_range",
+  "invalid_amount",
+  "amount_limit_exceeded",
+]);
+
 function friendlyMessage(err: unknown): string {
+  const code = (err as { code?: unknown })?.code;
   const msg = String((err as Error)?.message || err || "");
-  if (msg.toLowerCase().includes("freighter") || msg.toLowerCase().includes("wallet")) {
+  const lower = msg.toLowerCase();
+  if (lower.includes("freighter") || lower.includes("wallet")) {
     return "We couldn't connect to your wallet. Make sure Freighter is installed and unlocked, then try again.";
   }
-  if (msg.toLowerCase().includes("declined") || msg.toLowerCase().includes("rejected")) {
+  if (lower.includes("declined") || lower.includes("rejected")) {
     return "You'll need to approve the signature in your wallet to continue.";
+  }
+  if (typeof code === "string" && SAFE_ERROR_CODES.has(code) && msg) {
+    return msg;
   }
   return "Something didn't go through with the cash-out partner. Please try again.";
 }
@@ -112,7 +129,7 @@ export default function CashoutPage() {
     if (cancelled.current) return;
     const prep = await prepRes.json();
     if (cancelled.current) return;
-    if (!prepRes.ok) throw new Error(prep.message || "could not prepare the transfer");
+    if (!prepRes.ok) throw Object.assign(new Error(prep.message || "could not prepare the transfer"), { code: prep.code });
 
     if (!merchantAddress.current) throw new Error("no Stellar address on file");
     showProgress("Approve the transfer in your wallet…");
@@ -147,7 +164,7 @@ export default function CashoutPage() {
       const txn = await res.json().catch(() => ({}));
       if (cancelled.current) return;
       if (!res.ok) {
-        showFormError(friendlyMessage(new Error(txn.message)));
+        showFormError(friendlyMessage(Object.assign(new Error(txn.message), { code: txn.code })));
         return;
       }
 
@@ -198,9 +215,10 @@ export default function CashoutPage() {
       if (cancelled.current) return;
       const challenge = await challengeRes.json();
       if (cancelled.current) return;
-      if (!challengeRes.ok) throw new Error(challenge.message || "could not reach the cash-out partner");
+      if (!challengeRes.ok) throw Object.assign(new Error(challenge.message || "could not reach the cash-out partner"), { code: challenge.code });
 
       if (!merchantAddress.current) throw new Error("no Stellar address on file");
+      showProgress("Approve the sign-in in your wallet…");
       signingInFlight.current = true;
       const signed = await freighterApi.signTransaction(challenge.xdr, {
         networkPassphrase: challenge.network_passphrase,
@@ -220,11 +238,12 @@ export default function CashoutPage() {
       if (cancelled.current) return;
       const start = await startRes.json();
       if (cancelled.current) return;
-      if (!startRes.ok) throw new Error(start.message || "could not start the cash-out");
+      if (!startRes.ok) throw Object.assign(new Error(start.message || "could not start the cash-out"), { code: start.code });
 
       await pollStatus(start.token, start.id);
     } catch (err) {
       if (cancelled.current) return;
+      signingInFlight.current = false;
       reportError(err, { tags: { flow: "cashout", stage: "start" } });
       showFormError(friendlyMessage(err));
     }
@@ -262,6 +281,10 @@ export default function CashoutPage() {
               <option value="USDC">USDC</option>
             </select>
           </div>
+
+          <p className="text-sm text-slate-600">
+            This test partner accepts between 1–10 units per cash-out.
+          </p>
 
           {(status || missingAddressStatus) && (
             <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">

@@ -4,6 +4,28 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_BASE } from "./api";
 
+const AUTH_CHANNEL = "konfirm-auth";
+const LOGOUT_STORAGE_KEY = "konfirm-auth-logout";
+
+/** Tell every other open tab the session ended so they redirect to login
+ * without waiting for their own API call to fail. */
+export function notifyLogout() {
+  try {
+    if (typeof BroadcastChannel !== "undefined") {
+      const channel = new BroadcastChannel(AUTH_CHANNEL);
+      channel.postMessage("logout");
+      channel.close();
+    }
+  } catch {
+    // BroadcastChannel unavailable — fall through to the storage event.
+  }
+  try {
+    localStorage.setItem(LOGOUT_STORAGE_KEY, String(Date.now()));
+  } catch {
+    // localStorage unavailable — nothing else we can do.
+  }
+}
+
 export interface UseRequireAuthOptions<T> {
   /** e.g. "/admin/auth/me" or "/auth/me" */
   meEndpoint: string;
@@ -143,6 +165,33 @@ export function useRequireAuth<T = unknown>(options: UseRequireAuthOptions<T>): 
     // effect only re-runs when the endpoint/login/skip actually change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [skip, meEndpoint, loginPath]);
+
+  // Cross-tab logout sync: redirect this tab to login as soon as any other
+  // tab for the same session logs out.
+  useEffect(() => {
+    if (skip) return;
+    const onLogout = () => router.replace(loginPath);
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        channel = new BroadcastChannel(AUTH_CHANNEL);
+        channel.onmessage = (event: MessageEvent) => {
+          if (event.data === "logout") onLogout();
+        };
+      }
+    } catch {
+      channel = null;
+    }
+    function handleStorage(event: StorageEvent) {
+      if (event.key === LOGOUT_STORAGE_KEY && event.newValue) onLogout();
+    }
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      channel?.close();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loginPath, skip]);
 
   return { resolved, data, error };
 }
