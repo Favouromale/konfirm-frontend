@@ -116,7 +116,10 @@ export default function DocsPage() {
             Konfirm watches the Stellar ledger in real time. When the transaction lands and matches the link, it is
             confirmed and appears in the merchant&apos;s <code>/activity</code> dashboard immediately.
           </li>
-          <li>Merchant can cash out their balance at any time via <code>/cashout</code>.</li>
+          <li>
+            Merchant can cash out their balance via <code>/cashout</code>. The current testnet partner enforces a
+            per-transaction limit of 1–10 units, so a balance above 10 units requires multiple cash-outs.
+          </li>
         </ol>
       </section>
 

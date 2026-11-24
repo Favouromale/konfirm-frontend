@@ -246,6 +246,9 @@ export default function CashoutPage() {
       signingInFlight.current = false;
       reportError(err, { tags: { flow: "cashout", stage: "start" } });
       showFormError(friendlyMessage(err));
+    } finally {
+      signingInFlight.current = false;
+      if (!cancelled.current) setStarting(false);
     }
   }
 
