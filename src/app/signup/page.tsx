@@ -33,6 +33,7 @@ function SignupForm() {
     };
   }, [router]);
 
+  if (checkingAuth) return null;
   // Present only when someone arrived via another merchant's referral
   // link (see /referrals) — an invalid/expired code is rejected silently
   // server-side, not surfaced as an error here, since it should never

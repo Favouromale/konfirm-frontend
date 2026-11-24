@@ -35,6 +35,29 @@ export default function LoginPage() {
     };
   }, [router]);
 
+  if (checkingAuth) return null;
+
+  // Redirect already-authenticated visitors before rendering the form so
+  // they never see a flash of the login UI.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/auth/me`, { credentials: "include" });
+        if (!cancelled && res.ok) {
+          router.replace("/activity");
+          return;
+        }
+      } catch {
+        // Network error — just show the form.
+      }
+      if (!cancelled) setCheckingAuth(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
 
   // Surface a distinct banner when the user was bounced here by a real
   // session expiry (401), as opposed to a backend outage or network error.
