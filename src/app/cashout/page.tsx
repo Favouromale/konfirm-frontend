@@ -280,6 +280,14 @@ export default function CashoutPage() {
               <option value="XLM">XLM</option>
               <option value="USDC">USDC</option>
             </select>
+            <p className="mt-2 text-xs text-slate-500">
+              EURC cash-out isn&apos;t supported yet — our testnet cash-out partner only settles XLM and USDC.
+              If you&apos;ve accepted EURC payments, hold them for now. See the{" "}
+              <Link href="/docs" className="underline">
+                docs
+              </Link>{" "}
+              for details.
+            </p>
           </div>
 
           <p className="text-sm text-slate-600">
