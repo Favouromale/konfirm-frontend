@@ -6,7 +6,7 @@ import Link from "next/link";
 import { API_BASE, apiPost } from "@/lib/api";
 import { useRequireAuth, broadcastLogout } from "@/lib/useAuth";
 import { formatAmount } from "@/lib/format";
-import { isTerminalAuthFailure } from "@/lib/poll";
+import { isTerminalAuthFailure, shouldShowPollError } from "@/lib/poll";
 import FeeSettlement from "@/components/fee-settlement";
 
 type PaymentStatus = "paid" | "held" | "refunded" | "disputed";
@@ -241,6 +241,126 @@ function ActivityContent() {
             background: "var(--warn, #b45309)",
             color: "#fff",
             padding: "10px 16px",
-            fontW
+            fontWeight: 600,
+            fontSize: 13,
+          }}
+        >
+          Admin preview — viewing as merchant
+        </div>
+      )}
+      <div className="header-row">
+        <div className="brand">
+          <span className="mark">✓</span> Konfirm
+        </div>
+        {showNav && (
+          <div className="nav-actions">
+            <Link href="/links" className="btn btn-secondary">
+              Payment links
+            </Link>
+            <button type="button" className="btn btn-secondary" onClick={handleLogout}>
+              Log out
+            </button>
+          </div>
+        )}
+      </div>
 
-/* … truncated 805 chars — edit only what you need near the top … */
+      <div className="card">
+        <div className="card-header">
+          <h2>Activity</h2>
+          {pollError && (
+            <span className="badge badge-warn" role="status">
+              Live updates paused — reconnecting…
+            </span>
+          )}
+        </div>
+
+        {hasBalances && (
+          <div className="balances">
+            {Object.entries(totals).map(([asset, amount]) => (
+              <div key={asset} className="balance">
+                <span className="balance-amount">{formatAmount(amount, asset)}</span>
+                <span className="balance-label">received</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="filters">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              type="button"
+              className={`chip ${statusFilter === f.value ? "chip-active" : ""}`}
+              onClick={() => setStatusFilter(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+          <select
+            className="select"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value as DateRangePreset)}
+          >
+            {DATE_RANGE_FILTERS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {filteredPayments.length === 0 ? (
+          <div className="empty">No payments yet.</div>
+        ) : (
+          <ul className="payment-list">
+            {filteredPayments.map((p) => (
+              <li key={p.id} className="payment-row">
+                <button
+                  type="button"
+                  className="payment-summary"
+                  onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                >
+                  <span className="payment-amount">{formatAmount(Number(p.net_usdc), p.asset_code)}</span>
+                  <span className={`badge badge-${p.status}`}>{p.status}</span>
+                  {p.status === "held" && (
+                    <span className="payment-reason">
+                      {p.flag_reason ? HOLD_REASON_TEXT[p.flag_reason] ?? HOLD_FALLBACK : HOLD_FALLBACK}
+                    </span>
+                  )}
+                  <span className="payment-time">{new Date(p.created_at).toLocaleString()}</span>
+                </button>
+                {expandedId === p.id && (
+                  <div className="payment-detail">
+                    <div>
+                      <strong>From:</strong> {p.payer_address}
+                    </div>
+                    {p.link_description && (
+                      <div>
+                        <strong>Link:</strong> {p.link_description}
+                      </div>
+                    )}
+                    <div>
+                      <strong>ID:</strong> {p.id}
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {pending && <div className="empty">A payment is pending confirmation…</div>}
+
+      {hasAddress && <FeeSettlement />}
+    </div>
+  );
+}
+
+export default function ActivityPage() {
+  return (
+    <Suspense fallback={<div className="empty">Loading…</div>}>
+      <ActivityContent />
+    </Suspense>
+  );
+}

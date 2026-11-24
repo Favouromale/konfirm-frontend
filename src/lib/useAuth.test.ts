@@ -45,6 +45,10 @@ describe("useRequireAuth", () => {
       useRequireAuth({ meEndpoint: "/admin/auth/me", loginPath: "/admin/login" }),
     );
 
+    const { result } = renderHook(() =>
+      useRequireAuth({ meEndpoint: "/admin/auth/me", loginPath: "/admin/login" }),
+    );
+
     await waitFor(() => expect(push).toHaveBeenCalledWith("/admin/login?reason=session_expired"));
     expect(result.current.resolved).toBe(false);
   });
