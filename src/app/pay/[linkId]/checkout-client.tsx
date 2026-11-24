@@ -23,7 +23,19 @@ import qrcode from "qrcode-generator";
 import { API_BASE } from "@/lib/api";
 import { useCheckoutMessages, useLocale } from "@/lib/i18n";
 import { friendlyMessage, randomMuxedId } from "@/lib/checkout";
+import { explorerTxUrl } from "@/lib/stellar-explorer";
 import { reportError } from "@/lib/report-error";
+
+const HORIZON_URL = "https://horizon-testnet.stellar.org";
+
+interface LinkData {
+  merchant_name: string;
+  description: string | null;
+  amount_usdc: string;
+  fee_usdc: string | null;
+  currency: string;
+  stellar_base_address: string;
+}
 
 interface ConfirmedPayment {
   tx_hash: string;
@@ -390,6 +402,22 @@ export default function CheckoutClient({ params }: { params: Promise<{ linkId: s
         >
           {paying ? "Processing…" : "Pay now"}
         </button>
+
+        {confirmed && (
+          <div className="success-box">
+            <div className="tick">✓</div>
+            <div className="success-title">{t("successTitle")}</div>
+            <div className="success-detail">{t("successDetail")}</div>
+            <a
+              className="txlink"
+              href={explorerTxUrl(confirmed.tx_hash)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View on stellar.expert →
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );
