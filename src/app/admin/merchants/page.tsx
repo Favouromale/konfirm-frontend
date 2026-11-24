@@ -170,7 +170,8 @@ export default function AdminMerchantsPage() {
     const reason = promptForReason("change this merchant's tier", setError);
     if (reason === null) return;
 
-    markPending(merchant.id, true);
+    inFlight.current = true;
+    setPendingId(merchant.id);
     setError("");
     const result = await apiPatch(`/admin/merchants/${merchant.id}/tier`, { risk_tier: riskTier, reason });
     if (result.ok) {
@@ -260,7 +261,7 @@ export default function AdminMerchantsPage() {
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          disabled={pendingIds.has(m.id)}
+                          disabled={pendingId === m.id}
                           onClick={() => sendPasswordReset(m)}
                         >
                           Send reset
@@ -268,15 +269,7 @@ export default function AdminMerchantsPage() {
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          disabled={pendingIds.has(m.id)}
-                          onClick={() => toggleStatus(m)}
-                        >
-                          {m.status === "suspended" ? "Reactivate" : "Suspend"}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          disabled={pendingIds.has(m.id)}
+                          disabled={pendingId === m.id}
                           onClick={() => toggleStatus(m)}
                         >
                           {m.status === "suspended" ? "Reactivate" : "Suspend"}
