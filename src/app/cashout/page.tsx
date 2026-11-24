@@ -255,19 +255,19 @@ export default function CashoutPage() {
   if (!resolved) return null;
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-12">
+    <main className="mx-auto max-w-xl px-6 py-16">
       <h1 className="text-2xl font-semibold">Cash out</h1>
       <p className="mt-2 text-sm text-slate-600">
         Convert your balance to {currency} and send it to your wallet.
       </p>
 
       {view === "form" && (
-        <div className="mt-6 space-y-4">
+        <div className="mt-8 space-y-6">
           <div>
-            <label className="block text-sm font-medium" htmlFor="currency">Currency</label>
+            <label className="block text-sm font-medium text-slate-700" htmlFor="currency">Currency</label>
             <select
               id="currency"
-              className="mt-1 w-full rounded border px-3 py-2"
+              className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               value={currency}
               onChange={(e) => setCurrency(e.target.value as Currency)}
               disabled={starting}
@@ -275,11 +275,23 @@ export default function CashoutPage() {
               <option value="XLM">XLM</option>
               <option value="USDC">USDC</option>
             </select>
+            <p className="mt-2 text-xs text-slate-500">
+              EURC cash-out isn&apos;t supported yet — our testnet cash-out partner only settles XLM and USDC.
+              If you&apos;ve accepted EURC payments, hold them for now; EURC cash-out will be added once the
+              partner supports it. See the{" "}
+              <Link href="/docs" className="underline">
+                docs
+              </Link>{" "}
+              for details.
+            </p>
           </div>
 
-          <p className="text-sm text-slate-600">
-            This test partner accepts between 1–10 units per cash-out.
-          </p>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Amount</label>
+            <p className="mt-2 text-xs text-slate-500">
+              Cash-outs are limited to 1–10 units per request on testnet.
+            </p>
+          </div>
 
           {(status || missingAddressStatus) && (
             <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -294,9 +306,10 @@ export default function CashoutPage() {
           )}
 
           <button
-            className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
+            type="button"
             onClick={handleStart}
-            disabled={starting || !merchant?.stellar_base_address}
+            disabled={starting || !merchant?.stellar_base_address || freighterAvailable === false}
+            className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {starting ? "Starting…" : "Start cash-out"}
           </button>
@@ -305,14 +318,26 @@ export default function CashoutPage() {
 
       {view === "progress" && (
         <div className="mt-6 space-y-2">
-          <p className="text-sm font-medium">{stage}</p>
+          <p className="text-sm font-medium text-slate-900">{stage}</p>
           {hint && <p className="text-sm text-slate-600">{hint}</p>}
         </div>
       )}
 
       {view === "success" && (
-        <div className="mt-6 space-y-2">
-          <p className="text-sm font-medium">Cash-out complete.</p>
+        <div className="mt-8 space-y-4">
+          <p className="text-sm font-medium text-green-700">Cash-out complete.</p>
+          <button
+            type="button"
+            onClick={() => {
+              setView("form");
+              setStatus("");
+              setStarting(false);
+              inFlight.current = false;
+            }}
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Start another
+          </button>
           <Link className="text-sm underline" href="/activity">
             View your activity
           </Link>
