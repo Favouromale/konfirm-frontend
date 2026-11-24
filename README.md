@@ -108,3 +108,5 @@ Set `BACKEND_URL` in the Vercel project's environment variables to the deployed 
 
 <!-- handsoff-issue-344 -->
 - #344: Treasury's merchant-address field has no Stellar-address validation, unlike compliance's identical-shaped field
+<!-- handsoff-issue-357 -->
+- #357: button.primary and button.secondary (every form's main actions) have no :hover state
