@@ -252,30 +252,22 @@ export default function CashoutPage() {
     }
   }
 
-  if (!resolved) {
-    return (
-      <main className="mx-auto max-w-xl px-6 py-16">
-        <p className="text-sm text-slate-500">Loading…</p>
-      </main>
-    );
-  }
+  if (!resolved) return null;
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-16">
-      <h1 className="text-2xl font-semibold text-slate-900">Cash out</h1>
+    <main className="mx-auto max-w-xl px-6 py-12">
+      <h1 className="text-2xl font-semibold">Cash out</h1>
       <p className="mt-2 text-sm text-slate-600">
-        Convert your balance to local currency through our cash-out partner.
+        Convert your balance to {currency} and send it to your wallet.
       </p>
 
       {view === "form" && (
-        <div className="mt-8 space-y-6">
+        <div className="mt-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700" htmlFor="currency">
-              Currency
-            </label>
+            <label className="block text-sm font-medium" htmlFor="currency">Currency</label>
             <select
               id="currency"
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded border px-3 py-2"
               value={currency}
               onChange={(e) => setCurrency(e.target.value as Currency)}
               disabled={starting}
@@ -283,14 +275,6 @@ export default function CashoutPage() {
               <option value="XLM">XLM</option>
               <option value="USDC">USDC</option>
             </select>
-            <p className="mt-2 text-xs text-slate-500">
-              EURC cash-out isn&apos;t supported yet — our testnet cash-out partner only settles XLM and USDC.
-              If you&apos;ve accepted EURC payments, hold them for now. See the{" "}
-              <Link href="/docs" className="underline">
-                docs
-              </Link>{" "}
-              for details.
-            </p>
           </div>
 
           <p className="text-sm text-slate-600">
@@ -298,46 +282,39 @@ export default function CashoutPage() {
           </p>
 
           {(status || missingAddressStatus) && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
               {status || missingAddressStatus}
             </p>
           )}
 
           {freighterAvailable === false && (
-            <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              Freighter wallet not detected. Install it to continue.
+            <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              Freighter isn't available in this browser. Install it to continue.
             </p>
           )}
 
           <button
-            type="button"
-            className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
             onClick={handleStart}
-            disabled={starting || !!missingAddressStatus || freighterAvailable === false}
+            disabled={starting || !merchant?.stellar_base_address}
           >
             {starting ? "Starting…" : "Start cash-out"}
           </button>
-
-          <p className="text-center text-sm text-slate-500">
-            <Link href="/dashboard" className="underline">
-              Back to dashboard
-            </Link>
-          </p>
         </div>
       )}
 
       {view === "progress" && (
-        <div className="mt-8 space-y-3">
-          <p className="text-sm font-medium text-slate-900">{stage}</p>
+        <div className="mt-6 space-y-2">
+          <p className="text-sm font-medium">{stage}</p>
           {hint && <p className="text-sm text-slate-600">{hint}</p>}
         </div>
       )}
 
       {view === "success" && (
-        <div className="mt-8 space-y-4">
-          <p className="text-sm font-medium text-emerald-700">Your cash-out is complete.</p>
-          <Link href="/dashboard" className="text-sm underline">
-            Back to dashboard
+        <div className="mt-6 space-y-2">
+          <p className="text-sm font-medium">Cash-out complete.</p>
+          <Link className="text-sm underline" href="/activity">
+            View your activity
           </Link>
         </div>
       )}

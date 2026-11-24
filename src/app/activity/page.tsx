@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { API_BASE, apiPost } from "@/lib/api";
-import { useRequireAuth } from "@/lib/useAuth";
+import { useRequireAuth, broadcastLogout } from "@/lib/useAuth";
 import { formatAmount } from "@/lib/format";
 import { isTerminalAuthFailure } from "@/lib/poll";
 import FeeSettlement from "@/components/fee-settlement";
@@ -87,6 +87,8 @@ function ActivityContent() {
   const [dateFilter, setDateFilter] = useState<DateRangePreset>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
+  const [logoutError, setLogoutError] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const consecutiveFailures = useRef(0);
 
   const poll = useCallback(async () => {
@@ -169,8 +171,25 @@ function ActivityContent() {
   }, [resolved, poll]);
 
   async function handleLogout() {
-    await apiPost("/auth/logout");
-    router.push("/login");
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError(false);
+    try {
+      const result = await apiPost("/auth/logout");
+      if (!result.ok) {
+        // The server never invalidated the session cookie — stay put so the
+        // user doesn't get a false sense of being logged out.
+        setLogoutError(true);
+        return;
+      }
+      broadcastLogout();
+      router.push("/login");
+    } catch {
+      // Network-level failure (offline/DNS/CORS) — fetch rejected.
+      setLogoutError(true);
+    } finally {
+      setLoggingOut(false);
+    }
   }
 
   // Held payments are listed but never counted as received until an admin
@@ -222,129 +241,6 @@ function ActivityContent() {
             background: "var(--warn, #b45309)",
             color: "#fff",
             padding: "10px 16px",
-            fontWeight: 600,
-            fontSize: 13,
-          }}
-        >
-          Admin preview — viewing as merchant
-        </div>
-      )}
-      {pollError && (
-        <div
-          role="alert"
-          style={{
-            background: "var(--warn, #b45309)",
-            color: "#fff",
-            padding: "10px 16px",
-            fontWeight: 600,
-            fontSize: 13,
-          }}
-        >
-          Having trouble reaching the server — retrying…
-        </div>
-      )}
-      <div className="header-row">
-        <div className="brand">
-          <span className="mark">✓</span> Konfirm
-        </div>
-        {showNav && (
-          <div className="nav-actions">
-            <Link href="/dashboard" className="btn secondary">
-              Dashboard
-            </Link>
-            <button className="btn secondary" onClick={handleLogout}>
-              Log out
-            </button>
-          </div>
-        )}
-      </div>
-      <h1>Activity</h1>
-      <p className="sub">Live payments as they arrive.</p>
+            fontW
 
-      {hasBalances && (
-        <div className="totals">
-          {Object.entries(totals).map(([asset, amount]) => (
-            <div key={asset} className="total-card">
-              <div className="total-label">{asset} received</div>
-              <div className="total-amount">{formatAmount(amount, asset)}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="filters">
-        <div className="filter-group">
-          {STATUS_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              className={`chip ${statusFilter === f.value ? "active" : ""}`}
-              onClick={() => setStatusFilter(f.value)}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <div className="filter-group">
-          {DATE_RANGE_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              className={`chip ${dateFilter === f.value ? "active" : ""}`}
-              onClick={() => setDateFilter(f.value)}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {filteredPayments.length === 0 ? (
-        <div className="empty">No payments yet.</div>
-      ) : (
-        <div className="list">
-          {filteredPayments.map((p) => (
-            <div key={p.id} className="row">
-              <button
-                className="row-main"
-                onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
-              >
-                <span className="row-amount">{formatAmount(Number(p.net_usdc), p.asset_code)}</span>
-                <span className={`badge ${p.status}`}>{p.status}</span>
-                {p.link_description && <span className="row-desc">{p.link_description}</span>}
-              </button>
-              {expandedId === p.id && (
-                <div className="row-detail">
-                  <div>
-                    <strong>Payer:</strong> {p.payer_address}
-                  </div>
-                  <div>
-                    <strong>Received:</strong> {new Date(p.created_at).toLocaleString()}
-                  </div>
-                  {p.status === "held" && (
-                    <div className="hold-reason">
-                      {HOLD_REASON_TEXT[p.flag_reason ?? ""] ?? HOLD_FALLBACK}
-                    </div>
-                  )}
-                  {p.fee_status !== "none" && (
-                    <FeeSettlement
-                      feeStatus={p.fee_status}
-                      feeOwedRaw={p.fee_owed_raw}
-                      feeAssetCode={p.fee_asset_code}
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function ActivityPage() {
-  return (
-    <Suspense fallback={<div className="empty">Loading…</div>}>
-      <ActivityContent />
-    </Suspense>
-  );
-}
+/* … truncated 805 chars — edit only what you need near the top … */
