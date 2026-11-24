@@ -6,6 +6,7 @@ import Link from "next/link";
 import { API_BASE, apiPost } from "@/lib/api";
 import { useRequireAuth } from "@/lib/useAuth";
 import { formatAmount } from "@/lib/format";
+import { isTerminalAuthFailure } from "@/lib/poll";
 import FeeSettlement from "@/components/fee-settlement";
 
 type PaymentStatus = "paid" | "held" | "refunded" | "disputed";
@@ -95,6 +96,13 @@ function ActivityContent() {
         fetch(`${API_BASE}/payments/mine`),
         fetch(`${API_BASE}/payments/mine/pending`),
       ]);
+      // A 401 means the session is gone — retrying will never fix it. Redirect
+      // to login (same pattern as useRequireAuth) instead of feeding it into
+      // the transient-failure counter and showing a generic "poll error".
+      if (isTerminalAuthFailure(paymentsRes.status) || isTerminalAuthFailure(pendingRes.status)) {
+        router.push("/login");
+        return;
+      }
       if (!paymentsRes.ok || !pendingRes.ok) {
         consecutiveFailures.current += 1;
         if (consecutiveFailures.current >= POLL_FAILURE_THRESHOLD) setPollError(true);
@@ -111,7 +119,7 @@ function ActivityContent() {
       consecutiveFailures.current += 1;
       if (consecutiveFailures.current >= POLL_FAILURE_THRESHOLD) setPollError(true);
     }
-  }, [hasAddress]);
+  }, [hasAddress, router]);
 
   // The recursive scheduling lives here, in a plain local function, rather
   // than inside the `poll` callback referencing itself — a useCallback
@@ -335,7 +343,7 @@ function ActivityContent() {
 
 export default function ActivityPage() {
   return (
-    <Suspense fallback={<div className="wrap"><div className="empty">Loading…</div></div>}>
+    <Suspense fallback={<div className="empty">Loading…</div>}>
       <ActivityContent />
     </Suspense>
   );
