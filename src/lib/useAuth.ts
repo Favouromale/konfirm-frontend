@@ -54,6 +54,8 @@ export interface UseRequireAuthResult<T> {
   /** Set when the check failed for a non-auth reason (5xx or network). A
    * real 401 still redirects to login and leaves this null. */
   error: AuthFailureKind | null;
+  /** Re-run the auth check (e.g. after a 5xx/network failure). No-op while skipped. */
+  retry: () => void;
 }
 
 // Consolidates the identical auth-check block that was independently
@@ -70,6 +72,7 @@ export function useRequireAuth<T = unknown>(options: UseRequireAuthOptions<T>): 
   const [resolved, setResolved] = useState(Boolean(skip));
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<AuthFailureKind | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
   const prevSkipRef = useRef(Boolean(skip));
 
   // Callers pass `select` as a fresh inline arrow on every render, so it is
@@ -164,7 +167,7 @@ export function useRequireAuth<T = unknown>(options: UseRequireAuthOptions<T>): 
     // `select` is read via selectRef so it need not be a dependency; the
     // effect only re-runs when the endpoint/login/skip actually change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [skip, meEndpoint, loginPath]);
+  }, [skip, meEndpoint, loginPath, retryToken]);
 
   // Cross-tab logout sync: redirect this tab to login as soon as any other
   // tab for the same session logs out.
@@ -193,7 +196,14 @@ export function useRequireAuth<T = unknown>(options: UseRequireAuthOptions<T>): 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loginPath, skip]);
 
-  return { resolved, data, error };
+  function retry() {
+    if (skip) return;
+    setError(null);
+    setResolved(false);
+    setRetryToken((n) => n + 1);
+  }
+
+  return { resolved, data, error, retry };
 }
 
 // Single shared timestamp formatter for admin pages. The backend stores
