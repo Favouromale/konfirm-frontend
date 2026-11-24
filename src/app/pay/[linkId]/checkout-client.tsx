@@ -212,9 +212,7 @@ export default function CheckoutClient({ params }: { params: Promise<{ linkId: s
     freighterApi.isConnected().then((res) => {
       setFreighterAvailable(!res.error && res.isConnected !== false);
     }).catch(() => {
-      setFreighterAvailable(false);
-    });
-  }, []);
+      s
 
   useEffect(() => {
     if (initialLinkData) return;
@@ -244,10 +242,6 @@ export default function CheckoutClient({ params }: { params: Promise<{ linkId: s
         setLoadingText(body.message ? friendlyMessage(new Error(body.message)) : t("notFound"));
         setLoadingIsError(true);
         return;
-      }
-      setLoading(false);
-      const data: LinkData = await res.json();
-      setLinkData(data);
       }
       setLoading(false);
       const data: LinkData = await res.json();
